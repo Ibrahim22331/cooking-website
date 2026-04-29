@@ -11,32 +11,36 @@ export default function IngredientInput() {
   const [user, setUser] = useState(null);
   const [arDish, setArDish] = useState(null);
 
-  const token = localStorage.getItem("token");
-
-  // ✅ USE ENV VARIABLE (IMPORTANT FOR DEPLOYMENT)
   const API_URL = process.env.REACT_APP_API_URL;
+
+  const getToken = () => localStorage.getItem("token");
 
   /* =========================
      🔐 FETCH USER (FIXED)
   ========================= */
   const fetchUser = useCallback(async () => {
+    const token = getToken();
     if (!token) return;
 
     try {
       const res = await fetch(`${API_URL}/user`, {
         headers: {
-          Authorization: token
+          Authorization: `Bearer ${token}` // ✅ FIXED
         }
       });
 
-      if (!res.ok) return;
-
       const data = await res.json();
+
+      if (!res.ok) {
+        console.error("User fetch failed:", data);
+        return;
+      }
+
       setUser(data);
     } catch (err) {
       console.error("User fetch error:", err);
     }
-  }, [token, API_URL]);
+  }, [API_URL]);
 
   useEffect(() => {
     fetchUser();
@@ -57,9 +61,11 @@ export default function IngredientInput() {
   };
 
   /* =========================
-     GENERATE RECIPES
+     GENERATE RECIPES (FIXED)
   ========================= */
   const generateRecipe = async () => {
+    const token = getToken();
+
     if (!ingredients.length) {
       alert("Add at least one ingredient");
       return;
@@ -77,17 +83,28 @@ export default function IngredientInput() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token
+          Authorization: `Bearer ${token}` // ✅ FIXED
         },
         body: JSON.stringify({ ingredients })
       });
 
       const data = await res.json();
+
+      console.log("🔥 Generate response:", data);
+
+      if (!res.ok) {
+        alert(data.error || data.message || "Generate failed");
+        setLoading(false);
+        return;
+      }
+
       setRecipes(Array.isArray(data) ? data : []);
 
       await fetchUser();
+
     } catch (err) {
       console.error("Generate error:", err);
+      alert("Server error while generating");
     }
 
     setLoading(false);
@@ -106,7 +123,6 @@ export default function IngredientInput() {
   return (
     <div className="relative min-h-screen text-white p-6 overflow-hidden">
 
-      {/* 🌄 BACKGROUND */}
       <img
         src="https://images.unsplash.com/photo-1498837167922-ddd27525d352"
         alt="food"
@@ -115,7 +131,6 @@ export default function IngredientInput() {
 
       <div className="absolute inset-0 bg-black/70 -z-10"></div>
 
-      {/* HERO */}
       <div className="relative h-[260px] rounded-2xl overflow-hidden mb-6 max-w-6xl mx-auto">
         <img
           src="https://images.unsplash.com/photo-1551218808-94e220e084d2"
@@ -126,46 +141,31 @@ export default function IngredientInput() {
 
         <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-4xl font-bold">🍳 Recipe Roulette</h1>
-          <p className="mt-2 text-gray-200 max-w-xl">
-            Discover meals using ingredients you already have
-          </p>
         </div>
       </div>
 
-      {/* MAIN */}
       <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
 
         {/* LEFT */}
         <div className="bg-white/10 p-6 rounded-2xl">
 
-          {/* AUTH */}
           <div className="flex justify-end gap-3 mb-4">
             {!user ? (
               <>
-                <Link to="/login" className="bg-blue-600 px-4 py-2 rounded-lg">
-                  Login
-                </Link>
-                <Link to="/signup" className="bg-green-600 px-4 py-2 rounded-lg">
-                  Signup
-                </Link>
+                <Link to="/login" className="bg-blue-600 px-4 py-2 rounded-lg">Login</Link>
+                <Link to="/signup" className="bg-green-600 px-4 py-2 rounded-lg">Signup</Link>
               </>
             ) : (
               <>
                 <span className="bg-white/20 px-3 py-2 rounded-lg">
                   👋 {user.username}
                 </span>
-                <button
-                  onClick={logout}
-                  className="bg-red-600 px-4 py-2 rounded-lg"
-                >
+                <button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">
                   Logout
                 </button>
               </>
             )}
           </div>
-
-          {/* INPUT */}
-          <h3 className="mb-2">Enter Ingredients</h3>
 
           <div className="flex gap-2">
             <input
@@ -179,7 +179,6 @@ export default function IngredientInput() {
             </button>
           </div>
 
-          {/* TAGS */}
           <div className="flex flex-wrap gap-2 mt-3">
             {ingredients.map((item, i) => (
               <span
@@ -192,7 +191,6 @@ export default function IngredientInput() {
             ))}
           </div>
 
-          {/* GENERATE */}
           <button
             onClick={generateRecipe}
             disabled={loading}
@@ -206,13 +204,16 @@ export default function IngredientInput() {
         <div className="bg-white/10 p-6 rounded-2xl h-[80vh] overflow-y-auto">
           <h2 className="text-xl font-bold mb-4">🍽️ Results</h2>
 
+          {recipes.length === 0 && !loading && (
+            <p>No recipes yet</p>
+          )}
+
           {recipes.map((r, i) => (
             <RecipeCard key={i} item={r} onOpenAR={setArDish} />
           ))}
         </div>
       </div>
 
-      {/* AR */}
       {arDish && (
         <div className="fixed inset-0 bg-black">
           <Food3D image={arDish} fullScreen onClose={() => setArDish(null)} />
