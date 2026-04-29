@@ -1,4 +1,4 @@
-import ParticlesBg from "./ParticlesBg";
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import RecipeCard from "./RecipeCard";
