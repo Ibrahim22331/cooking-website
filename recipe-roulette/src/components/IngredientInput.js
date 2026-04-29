@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import RecipeCard from "./RecipeCard";
 import Food3D from "./Food3D";
@@ -14,14 +13,17 @@ export default function IngredientInput() {
 
   const token = localStorage.getItem("token");
 
+  // ✅ USE ENV VARIABLE (IMPORTANT FOR DEPLOYMENT)
+  const API_URL = process.env.REACT_APP_API_URL;
+
   /* =========================
-     🔐 FETCH USER
+     🔐 FETCH USER (FIXED)
   ========================= */
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     if (!token) return;
 
     try {
-      const res = await fetch("http://localhost:5000/user", {
+      const res = await fetch(`${API_URL}/user`, {
         headers: {
           Authorization: token
         }
@@ -34,11 +36,11 @@ export default function IngredientInput() {
     } catch (err) {
       console.error("User fetch error:", err);
     }
-  };
+  }, [token, API_URL]);
 
   useEffect(() => {
     fetchUser();
-  }, []);
+  }, [fetchUser]);
 
   /* =========================
      ADD INGREDIENT
@@ -71,7 +73,7 @@ export default function IngredientInput() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/generate", {
+      const res = await fetch(`${API_URL}/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,17 +106,16 @@ export default function IngredientInput() {
   return (
     <div className="relative min-h-screen text-white p-6 overflow-hidden">
 
-      {/* 🌄 BLUR BACKGROUND IMAGE */}
+      {/* 🌄 BACKGROUND */}
       <img
         src="https://images.unsplash.com/photo-1498837167922-ddd27525d352"
         alt="food"
         className="absolute inset-0 w-full h-full object-cover blur-md scale-110 -z-10"
       />
 
-      {/* 🌑 DARK OVERLAY */}
       <div className="absolute inset-0 bg-black/70 -z-10"></div>
 
-      {/* 🔥 HERO */}
+      {/* HERO */}
       <div className="relative h-[260px] rounded-2xl overflow-hidden mb-6 max-w-6xl mx-auto">
         <img
           src="https://images.unsplash.com/photo-1551218808-94e220e084d2"
@@ -126,18 +127,18 @@ export default function IngredientInput() {
         <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-4xl font-bold">🍳 Recipe Roulette</h1>
           <p className="mt-2 text-gray-200 max-w-xl">
-            Discover restaurant-quality meals using ingredients you already have
+            Discover meals using ingredients you already have
           </p>
         </div>
       </div>
 
-      {/* MAIN GRID */}
-      <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto items-start">
+      {/* MAIN */}
+      <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
 
-        {/* LEFT PANEL */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-2xl shadow-xl">
+        {/* LEFT */}
+        <div className="bg-white/10 p-6 rounded-2xl">
 
-          {/* AUTH / USER */}
+          {/* AUTH */}
           <div className="flex justify-end gap-3 mb-4">
             {!user ? (
               <>
@@ -163,46 +164,17 @@ export default function IngredientInput() {
             )}
           </div>
 
-          {/* PROGRESS */}
-          {user && (
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 rounded-xl mb-4">
-              <h2 className="font-bold">🔥 Your Progress</h2>
-              <p>⭐ Points: {user.points}</p>
-              <p>🔥 Streak: {user.streak}</p>
-            </div>
-          )}
-
-          {/* ACHIEVEMENTS */}
-          {user?.achievements?.length > 0 && (
-            <div className="bg-white/10 p-4 rounded-xl mb-4 border border-white/20">
-              <h3 className="font-semibold mb-2">🏆 Achievements</h3>
-              <div className="flex flex-wrap gap-2">
-                {user.achievements.map((a, i) => (
-                  <span
-                    key={i}
-                    className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm"
-                  >
-                    {a}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* INPUT */}
-          <h3 className="font-semibold mb-2">Enter Ingredients</h3>
+          <h3 className="mb-2">Enter Ingredients</h3>
 
           <div className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 bg-white/20 border border-white/30 p-3 rounded-lg"
-              placeholder="e.g. rice, chicken, garlic..."
+              className="flex-1 p-3 rounded-lg bg-white/20"
+              placeholder="e.g. rice, chicken"
             />
-            <button
-              onClick={addIngredient}
-              className="bg-teal-500 px-4 rounded-lg"
-            >
+            <button onClick={addIngredient} className="bg-teal-500 px-4 rounded-lg">
               Add
             </button>
           </div>
@@ -230,39 +202,20 @@ export default function IngredientInput() {
           </button>
         </div>
 
-        {/* RIGHT PANEL */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-2xl shadow-xl h-[80vh] overflow-y-auto">
+        {/* RIGHT */}
+        <div className="bg-white/10 p-6 rounded-2xl h-[80vh] overflow-y-auto">
+          <h2 className="text-xl font-bold mb-4">🍽️ Results</h2>
 
-          <h2 className="text-xl font-bold mb-4 sticky top-0 bg-black/50 p-2 rounded">
-            🍽️ Recipe Results
-          </h2>
-
-          {!loading && recipes.length === 0 && (
-            <p className="text-gray-300">
-              No recipes yet — ⚠️ Login and generate recipes 🍳
-            </p>
-          )}
-
-          <div className="space-y-6">
-            {recipes.map((r, i) => (
-              <RecipeCard
-                key={i}
-                item={r}
-                onOpenAR={setArDish}
-              />
-            ))}
-          </div>
+          {recipes.map((r, i) => (
+            <RecipeCard key={i} item={r} onOpenAR={setArDish} />
+          ))}
         </div>
       </div>
 
-      {/* 🔥 GLOBAL AR */}
+      {/* AR */}
       {arDish && (
-        <div className="fixed inset-0 bg-black z-[9999]">
-          <Food3D
-            image={arDish}
-            fullScreen
-            onClose={() => setArDish(null)}
-          />
+        <div className="fixed inset-0 bg-black">
+          <Food3D image={arDish} fullScreen onClose={() => setArDish(null)} />
         </div>
       )}
     </div>
