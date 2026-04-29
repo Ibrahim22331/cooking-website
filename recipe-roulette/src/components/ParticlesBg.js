@@ -1,25 +1,11 @@
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
+import React from "react";
 
-export default function ParticlesBg() {
-  const particlesInit = async (main) => {
-    await loadFull(main);
-  };
-
+export default function Home() {
   return (
-    <Particles
-      className="absolute inset-0 -z-10"
-      init={particlesInit}
-      options={{
-        background: { color: "transparent" },
-        particles: {
-          number: { value: 50 },
-          size: { value: 2 },
-          move: { enable: true, speed: 1 },
-          opacity: { value: 0.3 },
-          color: { value: "#ffffff" }
-        }
-      }}
-    />
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+      <h1 className="text-3xl font-bold">
+        Welcome to Recipe Roulette 🍳
+      </h1>
+    </div>
   );
 }
