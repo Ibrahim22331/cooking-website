@@ -3,11 +3,22 @@ import { useEffect, useState } from "react";
 export default function Leaderboard() {
   const [users, setUsers] = useState([]);
 
+  // ✅ Use environment variable
+  const API_URL = process.env.REACT_APP_API_URL;
+
   useEffect(() => {
-    fetch("http://localhost:5000/leaderboard")
-      .then(res => res.json())
-      .then(setUsers);
-  }, []);
+    const fetchLeaderboard = async () => {
+      try {
+        const res = await fetch(`${API_URL}/leaderboard`);
+        const data = await res.json();
+        setUsers(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Leaderboard error:", err);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [API_URL]);
 
   return (
     <div className="p-6 text-white min-h-screen bg-black">
