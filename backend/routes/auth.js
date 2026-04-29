@@ -11,24 +11,28 @@ router.post("/signup", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // ❌ VALIDATION
+    // ✅ VALIDATION
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // ❌ CHECK EXISTING USER
+    // ✅ CHECK EXISTING USER
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // 🔐 HASH PASSWORD
-    const hashed = await bcrypt.hash(password, 10);
+    // ✅ HASH PASSWORD
+    const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ✅ CREATE USER WITH DEFAULTS (IMPORTANT)
     const user = new User({
       username,
       email,
-      password: hashed
+      password: hashedPassword,
+      points: 0,
+      streak: 0,
+      achievements: []
     });
 
     await user.save();
@@ -38,11 +42,10 @@ router.post("/signup", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Signup Error:", err);
-    res.status(500).json({ message: "Server error during signup" });
+    console.error("🔥 Signup Error FULL:", err); // IMPORTANT LOG
+    res.status(500).json({ message: err.message }); // show real error
   }
 });
-
 
 /* =========================
    🔐 LOGIN
@@ -51,28 +54,26 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // ❌ VALIDATION
     if (!email || !password) {
       return res.status(400).json({ message: "Email & password required" });
     }
 
-    // 🔍 FIND USER
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // 🔑 CHECK PASSWORD
     const match = await bcrypt.compare(password, user.password);
+
     if (!match) {
       return res.status(400).json({ message: "Incorrect password" });
     }
 
-    // 🔐 GENERATE TOKEN
     const token = jwt.sign(
       { id: user._id },
       "secret123",
-      { expiresIn: "7d" } // ✅ expiry added
+      { expiresIn: "7d" }
     );
 
     res.json({
@@ -81,15 +82,15 @@ router.post("/login", async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
-        points: user.points,
-        streak: user.streak,
-        achievements: user.achievements
+        points: user.points || 0,
+        streak: user.streak || 0,
+        achievements: user.achievements || []
       }
     });
 
   } catch (err) {
-    console.error("❌ Login Error:", err);
-    res.status(500).json({ message: "Server error during login" });
+    console.error("🔥 Login Error FULL:", err);
+    res.status(500).json({ message: err.message });
   }
 });
 
