@@ -23,9 +23,9 @@ app.use("/auth", authRoutes);
 app.use("/recipes", recipeRoutes);
 
 /* =========================
-   DATABASE CONNECTION
+   DATABASE CONNECTION (FIXED)
 ========================= */
-mongoose.connect("mongodb://localhost:27017/recipeDB")
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.log("❌ DB Error:", err));
 
@@ -142,11 +142,7 @@ app.post("/generate", authMiddleware, async (req, res) => {
 
       user.lastCooked = today;
 
-      /* =========================
-         🏆 ACHIEVEMENTS (FIXED)
-      ========================= */
-
-      // Points based
+      // Points achievements
       if (user.points >= 50 && !user.achievements.includes("Beginner Chef")) {
         user.achievements.push("Beginner Chef");
       }
@@ -155,7 +151,7 @@ app.post("/generate", authMiddleware, async (req, res) => {
         user.achievements.push("Master Chef");
       }
 
-      // Streak based
+      // Streak achievements
       if (user.streak >= 5 && !user.achievements.includes("5 Day Streak")) {
         user.achievements.push("5 Day Streak");
       }
@@ -188,8 +184,10 @@ app.get("/leaderboard", async (req, res) => {
 });
 
 /* =========================
-   START SERVER
+   START SERVER (FIXED)
 ========================= */
-app.listen(5000, () => {
-  console.log("🚀 Server running on port 5000");
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
