@@ -23,7 +23,7 @@ app.use("/auth", authRoutes);
 app.use("/recipes", recipeRoutes);
 
 /* =========================
-   DATABASE CONNECTION (FIXED)
+   DATABASE CONNECTION
 ========================= */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
@@ -44,6 +44,7 @@ app.get("/user", authMiddleware, async (req, res) => {
     const user = await User.findById(req.user.id).select("-password");
     res.json(user);
   } catch (err) {
+    console.error("USER ERROR:", err);
     res.status(500).json({ error: "User fetch error" });
   }
 });
@@ -62,12 +63,13 @@ app.post("/favorite", authMiddleware, async (req, res) => {
     res.json({ message: "Recipe saved ❤️" });
 
   } catch (err) {
+    console.error("FAVORITE ERROR:", err);
     res.status(500).json({ error: "Failed to save favorite" });
   }
 });
 
 /* =========================
-   🎡 GENERATE + GAMIFICATION
+   🎡 GENERATE RECIPES
 ========================= */
 app.post("/generate", authMiddleware, async (req, res) => {
   try {
@@ -75,10 +77,26 @@ app.post("/generate", authMiddleware, async (req, res) => {
       i.toLowerCase().trim()
     );
 
+    console.log("🟡 USER INGREDIENTS:", userIngredients);
+
     const recipes = await Recipe.find();
 
+    console.log("🟢 RECIPES IN DB:", recipes.length);
+
+    // ✅ If DB empty → send fallback recipes
     if (!recipes.length) {
-      return res.json([]);
+      return res.json([
+        {
+          title: "Simple Rice Bowl",
+          ingredients: ["rice", "salt"],
+          instructions: "Cook rice and add salt"
+        },
+        {
+          title: "Basic Omelette",
+          ingredients: ["egg", "oil"],
+          instructions: "Beat eggs and fry"
+        }
+      ]);
     }
 
     const normalize = (text) =>
@@ -115,15 +133,13 @@ app.post("/generate", authMiddleware, async (req, res) => {
       };
     });
 
-    const filtered = results.filter(r => r.matchScore > 0.2);
-    const finalResults = filtered.length > 0 ? filtered : results;
-
-    const sorted = finalResults.sort(
+    // ✅ Always return something (no empty UI)
+    const sorted = results.sort(
       (a, b) => b.matchScore - a.matchScore
     );
 
     /* =========================
-       🎮 GAMIFICATION SYSTEM
+       🎮 GAMIFICATION
     ========================= */
     const user = await User.findById(req.user.id);
 
@@ -142,7 +158,7 @@ app.post("/generate", authMiddleware, async (req, res) => {
 
       user.lastCooked = today;
 
-      // Points achievements
+      // Achievements
       if (user.points >= 50 && !user.achievements.includes("Beginner Chef")) {
         user.achievements.push("Beginner Chef");
       }
@@ -151,7 +167,6 @@ app.post("/generate", authMiddleware, async (req, res) => {
         user.achievements.push("Master Chef");
       }
 
-      // Streak achievements
       if (user.streak >= 5 && !user.achievements.includes("5 Day Streak")) {
         user.achievements.push("5 Day Streak");
       }
@@ -166,7 +181,7 @@ app.post("/generate", authMiddleware, async (req, res) => {
     res.json(sorted.slice(0, 5));
 
   } catch (err) {
-    console.error("❌ ERROR:", err);
+    console.error("❌ GENERATE ERROR:", err);
     res.status(500).json({ error: "Something went wrong" });
   }
 });
@@ -179,12 +194,13 @@ app.get("/leaderboard", async (req, res) => {
     const users = await User.find().sort({ points: -1 });
     res.json(users);
   } catch (err) {
+    console.error("LEADERBOARD ERROR:", err);
     res.status(500).json({ error: "Leaderboard error" });
   }
 });
 
 /* =========================
-   START SERVER (FIXED)
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 5000;
 
