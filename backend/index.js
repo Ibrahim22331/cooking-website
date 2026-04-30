@@ -83,41 +83,45 @@ app.post("/generate", authMiddleware, async (req, res) => {
 
     console.log("🟢 RECIPES IN DB:", recipes.length);
 
-    // ✅ If DB empty → send fallback recipes
+    /* =========================
+       🟢 FALLBACK DATA (FIXED)
+    ========================= */
     if (!recipes.length) {
       return res.json([
         {
           title: "Simple Rice Bowl",
           ingredients: ["rice", "salt"],
-          instructions: "Cook rice and add salt"
+          instructions: "Cook rice and add salt.",
+          image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d"
         },
         {
           title: "Basic Omelette",
           ingredients: ["egg", "oil"],
-          instructions: "Beat eggs and fry"
+          instructions: "Beat eggs and fry.",
+          image: "https://images.unsplash.com/photo-1512058564366-c9e3e04698b5"
         }
       ]);
     }
 
-    const normalize = (text) =>
-      text.toLowerCase().replace(/[^a-z]/g, "");
+    /* =========================
+       🔧 BETTER MATCH LOGIC
+    ========================= */
+    const normalize = (text) => text.toLowerCase().trim();
 
     const results = recipes.map(recipe => {
-      const recipeIngredients = recipe.ingredients.map(i =>
+      const recipeIngredients = (recipe.ingredients || []).map(i =>
         i.toLowerCase().trim()
       );
 
       const matched = recipeIngredients.filter(i =>
         userIngredients.some(userIng =>
-          normalize(i).includes(normalize(userIng)) ||
-          normalize(userIng).includes(normalize(i))
+          i.includes(userIng) || userIng.includes(i)
         )
       );
 
       const missing = recipeIngredients.filter(i =>
         !userIngredients.some(userIng =>
-          normalize(i).includes(normalize(userIng)) ||
-          normalize(userIng).includes(normalize(i))
+          i.includes(userIng) || userIng.includes(i)
         )
       );
 
@@ -128,30 +132,38 @@ app.post("/generate", authMiddleware, async (req, res) => {
 
       return {
         ...recipe._doc,
+        title: recipe.title || recipe.name, // ✅ compatibility fix
+        instructions:
+          recipe.instructions ||
+          (Array.isArray(recipe.steps) ? recipe.steps.join(". ") : ""),
+        image:
+          recipe.image ||
+          "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
         matchScore: score,
         missingIngredients: missing
       };
     });
 
-    // ✅ Always return something (no empty UI)
     const sorted = results.sort(
       (a, b) => b.matchScore - a.matchScore
     );
 
     /* =========================
-       🎮 GAMIFICATION
+       🎮 GAMIFICATION (FIXED)
     ========================= */
     const user = await User.findById(req.user.id);
 
     if (user) {
-      user.points += 10;
+      user.points = (user.points || 0) + 10;
 
       const today = new Date();
       const last = user.lastCooked;
 
       if (last) {
-        const diff = (today - last) / (1000 * 60 * 60 * 24);
-        user.streak = diff < 2 ? user.streak + 1 : 1;
+        const diff =
+          (new Date() - new Date(last)) / (1000 * 60 * 60 * 24);
+
+        user.streak = diff < 2 ? (user.streak || 0) + 1 : 1;
       } else {
         user.streak = 1;
       }
@@ -159,6 +171,8 @@ app.post("/generate", authMiddleware, async (req, res) => {
       user.lastCooked = today;
 
       // Achievements
+      user.achievements = user.achievements || [];
+
       if (user.points >= 50 && !user.achievements.includes("Beginner Chef")) {
         user.achievements.push("Beginner Chef");
       }
@@ -191,7 +205,10 @@ app.post("/generate", authMiddleware, async (req, res) => {
 ========================= */
 app.get("/leaderboard", async (req, res) => {
   try {
-    const users = await User.find().sort({ points: -1 });
+    const users = await User.find()
+      .select("username points streak achievements")
+      .sort({ points: -1 });
+
     res.json(users);
   } catch (err) {
     console.error("LEADERBOARD ERROR:", err);

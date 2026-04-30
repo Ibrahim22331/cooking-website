@@ -43,14 +43,18 @@ const userSchema = new mongoose.Schema(
       default: []
     },
 
-    /* ❤️ FAVORITES (NEW FEATURE) */
-    favorites: {
-      type: [Object], // you can later improve this to a schema
-      default: []
-    }
+    /* ❤️ FAVORITES */
+    favorites: [
+      {
+        title: String,
+        ingredients: [String],
+        instructions: String,
+        image: String
+      }
+    ]
   },
   {
-    timestamps: true // ✅ adds createdAt & updatedAt
+    timestamps: true
   }
 );
 
