@@ -10,13 +10,14 @@ export default function IngredientInput() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [arDish, setArDish] = useState(null);
+  const [error, setError] = useState("");
 
   const API_URL = process.env.REACT_APP_API_URL;
 
   const getToken = () => localStorage.getItem("token");
 
   /* =========================
-     🔐 FETCH USER (FIXED)
+     🔐 FETCH USER
   ========================= */
   const fetchUser = useCallback(async () => {
     const token = getToken();
@@ -25,16 +26,13 @@ export default function IngredientInput() {
     try {
       const res = await fetch(`${API_URL}/user`, {
         headers: {
-          Authorization: `Bearer ${token}` // ✅ FIXED
+          Authorization: `Bearer ${token}`
         }
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        console.error("User fetch failed:", data);
-        return;
-      }
+      if (!res.ok) return;
 
       setUser(data);
     } catch (err) {
@@ -50,9 +48,16 @@ export default function IngredientInput() {
      ADD INGREDIENT
   ========================= */
   const addIngredient = () => {
-    if (!input.trim()) return;
+    const value = input.toLowerCase().trim();
 
-    setIngredients(prev => [...prev, input.toLowerCase().trim()]);
+    if (!value) return;
+
+    if (ingredients.includes(value)) {
+      setInput("");
+      return;
+    }
+
+    setIngredients(prev => [...prev, value]);
     setInput("");
   };
 
@@ -61,21 +66,22 @@ export default function IngredientInput() {
   };
 
   /* =========================
-     GENERATE RECIPES (FIXED)
+     GENERATE RECIPES
   ========================= */
   const generateRecipe = async () => {
     const token = getToken();
 
     if (!ingredients.length) {
-      alert("Add at least one ingredient");
+      setError("Add at least one ingredient");
       return;
     }
 
     if (!token) {
-      alert("⚠️ Please login first");
+      setError("Please login first");
       return;
     }
 
+    setError("");
     setLoading(true);
 
     try {
@@ -83,28 +89,26 @@ export default function IngredientInput() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` // ✅ FIXED
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ ingredients })
       });
 
       const data = await res.json();
 
-      console.log("🔥 Generate response:", data);
-
       if (!res.ok) {
-        alert(data.error || data.message || "Generate failed");
+        setError(data.error || "Failed to generate recipes");
         setLoading(false);
         return;
       }
 
       setRecipes(Array.isArray(data) ? data : []);
 
-      await fetchUser();
+      await fetchUser(); // update points + streak
 
     } catch (err) {
-      console.error("Generate error:", err);
-      alert("Server error while generating");
+      console.error(err);
+      setError("Server error");
     }
 
     setLoading(false);
@@ -115,7 +119,6 @@ export default function IngredientInput() {
   ========================= */
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("user");
     setUser(null);
     window.location.href = "/login";
   };
@@ -123,14 +126,15 @@ export default function IngredientInput() {
   return (
     <div className="relative min-h-screen text-white p-6 overflow-hidden">
 
+      {/* BACKGROUND */}
       <img
         src="https://images.unsplash.com/photo-1498837167922-ddd27525d352"
         alt="food"
         className="absolute inset-0 w-full h-full object-cover blur-md scale-110 -z-10"
       />
-
       <div className="absolute inset-0 bg-black/70 -z-10"></div>
 
+      {/* HEADER */}
       <div className="relative h-[260px] rounded-2xl overflow-hidden mb-6 max-w-6xl mx-auto">
         <img
           src="https://images.unsplash.com/photo-1551218808-94e220e084d2"
@@ -146,9 +150,10 @@ export default function IngredientInput() {
 
       <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
 
-        {/* LEFT */}
+        {/* LEFT PANEL */}
         <div className="bg-white/10 p-6 rounded-2xl">
 
+          {/* USER */}
           <div className="flex justify-end gap-3 mb-4">
             {!user ? (
               <>
@@ -158,7 +163,7 @@ export default function IngredientInput() {
             ) : (
               <>
                 <span className="bg-white/20 px-3 py-2 rounded-lg">
-                  👋 {user.username}
+                  👋 {user.username} | 🔥 {user.streak} | ⭐ {user.points}
                 </span>
                 <button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">
                   Logout
@@ -167,18 +172,21 @@ export default function IngredientInput() {
             )}
           </div>
 
+          {/* INPUT */}
           <div className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 p-3 rounded-lg bg-white/20"
               placeholder="e.g. rice, chicken"
+              onKeyDown={(e) => e.key === "Enter" && addIngredient()}
             />
             <button onClick={addIngredient} className="bg-teal-500 px-4 rounded-lg">
               Add
             </button>
           </div>
 
+          {/* INGREDIENT LIST */}
           <div className="flex flex-wrap gap-2 mt-3">
             {ingredients.map((item, i) => (
               <span
@@ -191,6 +199,12 @@ export default function IngredientInput() {
             ))}
           </div>
 
+          {/* ERROR */}
+          {error && (
+            <p className="text-red-400 mt-3 text-sm">{error}</p>
+          )}
+
+          {/* GENERATE */}
           <button
             onClick={generateRecipe}
             disabled={loading}
@@ -200,23 +214,32 @@ export default function IngredientInput() {
           </button>
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT PANEL */}
         <div className="bg-white/10 p-6 rounded-2xl h-[80vh] overflow-y-auto">
           <h2 className="text-xl font-bold mb-4">🍽️ Results</h2>
 
-          {recipes.length === 0 && !loading && (
-            <p>No recipes yet</p>
+          {!loading && recipes.length === 0 && (
+            <p className="text-gray-300">No recipes yet</p>
           )}
 
           {recipes.map((r, i) => (
-            <RecipeCard key={i} item={r} onOpenAR={setArDish} />
+            <RecipeCard
+              key={i}
+              item={r}
+              onOpenAR={(img) => setArDish(img)} // ✅ FIXED AR
+            />
           ))}
         </div>
       </div>
 
+      {/* AR VIEW */}
       {arDish && (
         <div className="fixed inset-0 bg-black">
-          <Food3D image={arDish} fullScreen onClose={() => setArDish(null)} />
+          <Food3D
+            image={arDish}
+            fullScreen
+            onClose={() => setArDish(null)}
+          />
         </div>
       )}
     </div>
